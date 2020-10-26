@@ -51,14 +51,6 @@ variable stepDelay
   PORTD c@ ." Initial PORTD " .
 ;
 \
-: .bin ( byte -- )
-  base @ >r
-  2 base !
-  ." %"
-  0 <# # # # # # # # # #> type
-  r> base !
-;
-\
 : setSpeed ( rpm -- )
   1000 1000 m* numberOfSteps @ um/mod swap drop swap / 60 *
   stepDelay ! \ micros

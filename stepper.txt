@@ -72,7 +72,8 @@ variable stepDelay
    PINSTP PORTD mclr
   else
    PINSTP PORTD mset
-  then  ;
+  then  
+;
 \ API to actually execute n steps
 : steps ( stepsToMove -- )
   dup abs stepsLeft !

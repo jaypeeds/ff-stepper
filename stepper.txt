@@ -1,0 +1,99 @@
+\ requires math.txt
+marker -stepper
+decimal
+\ *********************************************************************
+\                                                                     *
+\    Filename:      stepper.txt                                       *
+\    Date:          25.10.2020                                        *
+\    FF Version:    5.0                                               *
+\    C Author:      Tom Igoe & alit.                                  *
+\    Forth Author:  Jean-Pierre de Soza aka Jaypee                    *
+\ *********************************************************************
+\ This is a very partial rewrite from C Stepper lib
+\ https://github.com/arduino-libraries/Stepper/blob/master/src/Stepper.cpp
+\ *********************************************************************
+43 constant PORTD
+42 constant DDRD
+41 constant PIND
+%00000100 constant PINDIR
+%00001000 constant PINSTP
+\
+: carray: ( n "name" -- )
+  create allot
+  does> +
+;
+4 carray: 1STEP
+%00001000 0 1STEP c!
+%00001100 1 1STEP c!
+%00000100 2 1STEP c!
+%00000000 3 1STEP c!
+
+\
+variable numberOfSteps
+variable stepsLeft
+variable stepNumber
+variable lastStepTicks
+variable clockwise
+variable ticksNow
+variable stepDelay
+\
+: init.stepper ( steps microsteps -- )
+  * numberOfSteps !
+  1 clockwise     c!
+  0 stepNumber    !
+  ticks lastStepTicks !
+  \ Pin 2 and 3 used as dirPin and stepPin (both in outputMode)
+  \ as needed to control A4988 or TB6600 motor drivers
+  PINDIR PINSTP or DDRD c!
+  PORTD c@ dup
+  PINSTP negate or PORTD c! \ STEP LOW
+  PINDIR or PORTD c! \ DIR HIGH
+  PORTD c@ ." Initial PORTD " .
+;
+\
+: .bin ( byte -- )
+  base @ >r
+  2 base !
+  ." %"
+  0 <# # # # # # # # # #> type
+  r> base !
+;
+\
+: setSpeed ( rpm -- )
+  1000 1000 m* numberOfSteps @ um/mod swap drop swap / 60 *
+  stepDelay ! \ micros
+;
+\
+: stepMotor ( thisStep -- )
+  1STEP c@ PORTD c!
+  ;
+\
+: steps ( stepsToMove -- )
+  dup abs stepsLeft !
+  0< if
+    0 clockwise c!
+  else
+    1 clockwise c!
+  then
+  begin
+    ticks ticksNow !
+    ticksNow @ lastStepTicks @ - 1000 * \ millis to micros
+    stepDelay @ < negate if
+      clockwise c@ if
+        1 stepNumber +!
+        numberOfSteps @ stepNumber @ = if
+          0 stepNumber !
+        then
+      else
+        -1 stepNumber +!
+        stepNumber @ 0< if
+          numberOfSteps @ stepNumber !
+        then
+      then
+      stepNumber @ 4 mod stepMotor
+      -1 stepsLeft +!
+      ticks lastStepTicks !
+    then
+    stepsLeft @ 0<
+  until
+;

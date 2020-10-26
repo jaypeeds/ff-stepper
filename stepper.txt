@@ -23,10 +23,15 @@ decimal
   does> +
 ;
 4 carray: 1STEP
-%00001000 0 1STEP c!
-%00001100 1 1STEP c!
-%00000100 2 1STEP c!
+%00000000 0 1STEP c!
+%00000001 1 1STEP c!
+%00000001 2 1STEP c!
 %00000000 3 1STEP c!
+4 carray: 2STEP
+%00000001 0 2STEP c!
+%00000001 1 2STEP c!
+%00000000 2 2STEP c!
+%00000000 3 2STEP c!
 
 \
 variable numberOfSteps
@@ -36,30 +41,39 @@ variable lastStepTicks
 variable clockwise
 variable ticksNow
 variable stepDelay
-\
+\ API to Initialise the stepper parameters
 : init.stepper ( steps microsteps -- )
   * numberOfSteps !
   1 clockwise     c!
   0 stepNumber    !
   ticks lastStepTicks !
-  \ Pin 2 and 3 used as dirPin and stepPin (both in outputMode)
+  \ PINDIR and PINSTP used as dirPin and stepPin (both in outputMode)
   \ as needed to control A4988 or TB6600 motor drivers
-  PINDIR PINSTP or DDRD c!
-  PORTD c@ dup
-  PINSTP negate or PORTD c! \ STEP LOW
-  PINDIR or PORTD c! \ DIR HIGH
-  PORTD c@ ." Initial PORTD " .
+  PINDIR DDRD mset \ Output mode
+  PINSTP DDRD mset \ Output mode
+  PINDIR PORTD mset
+  PINSTP PORTD mclr
 ;
-\
+\ API to set the revolutions per minute value
 : setSpeed ( rpm -- )
   1000 1000 m* numberOfSteps @ um/mod swap drop swap / 60 *
   stepDelay ! \ micros
 ;
-\
+\ Activation of the stepper motor
 : stepMotor ( thisStep -- )
-  1STEP c@ PORTD c!
-  ;
-\
+  dup
+  2STEP c@ 0= if
+   PINDIR PORTD mclr
+  else
+   PINDIR PORTD mset
+  then
+
+  1STEP c@ 0= if
+   PINSTP PORTD mclr
+  else
+   PINSTP PORTD mset
+  then  ;
+\ API to actually execute n steps
 : steps ( stepsToMove -- )
   dup abs stepsLeft !
   0< if
@@ -88,4 +102,12 @@ variable stepDelay
     then
     stepsLeft @ 0<
   until
+;
+\ Test and how to use it
+: testSteps ( n -- )
+  200 1 init.stepper
+  50 setSpeed
+  steps
+  \ clear PORTD
+  0 PORTD c!
 ;
